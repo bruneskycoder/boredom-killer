@@ -15,8 +15,8 @@ MARCAS = re.compile(r"// <generado>\n.*?// </generado>", re.S)
 
 
 def archivos():
-    rutas = sorted(p for p in APP.rglob("*") if p.is_file() and p != SW and p.name not in {".DS_Store", "Thumbs.db"})
-    return [p.relative_to(APP).as_posix() for p in rutas]
+    rutas = [p.relative_to(APP).as_posix() for p in APP.rglob("*") if p.is_file() and p != SW and p.name not in {".DS_Store", "Thumbs.db"}]
+    return sorted(rutas)  # por texto: igual en Windows (no distingue mayusculas) que en Linux
 
 
 def bloque():

@@ -4,7 +4,7 @@
 // No editar entre las marcas a mano.
 
 // <generado>
-const VERSION = 'bk-ef3e5ed463';
+const VERSION = 'bk-5656b5979e';
 const ARCHIVOS = [
   './',
   './datos/ingles.json',
@@ -14,10 +14,10 @@ const ARCHIVOS = [
   './datos/palabras5.json',
   './estilos/app.css',
   './estilos/base.css',
-  './estilos/fuentes/literata-latin-cursiva.woff2',
-  './estilos/fuentes/literata-latin.woff2',
   './estilos/fuentes/OFL-IBMPlexMono.txt',
   './estilos/fuentes/OFL-Literata.txt',
+  './estilos/fuentes/literata-latin-cursiva.woff2',
+  './estilos/fuentes/literata-latin.woff2',
   './estilos/fuentes/plexmono-latin-400.woff2',
   './estilos/fuentes/plexmono-latin-600.woff2',
   './iconos/apple-touch-icon.png',
