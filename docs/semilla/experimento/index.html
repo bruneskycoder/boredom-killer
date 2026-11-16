@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experimento mental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>:root { --h: 300; }</style>
+</head>
+<body data-needs-ai>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para pensar</p>
+    <h1>Experimento mental</h1>
+    <p class="lede">Un dilema, tu decisión, y después Claude cambia una variable para ver si el principio que usaste aguanta. Ninguno es el del tranvía.</p>
+  </header>
+
+  <section id="setup" class="panel">
+    <div class="field">
+      <span class="label">Elegí un caso</span>
+      <div id="casos" class="chips"></div>
+    </div>
+    <div class="row">
+      <button id="start" class="btn" type="button" data-ai>Plantear el caso</button>
+      <button id="random" class="btn ghost" type="button" data-ai>Sorprendeme</button>
+    </div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="statusbar">
+      <p id="topic" class="topic"></p>
+      <p id="meter" class="meter"></p>
+    </div>
+    <div id="log" class="log" aria-live="polite"></div>
+    <form id="composer" class="composer">
+      <label class="sr" for="reply">Tu respuesta</label>
+      <textarea id="reply" rows="3" placeholder="Qué hacés y por qué. Enter envía, Shift+Enter baja de línea."></textarea>
+      <div class="row">
+        <button class="btn" type="submit">Responder</button>
+        <button class="btn ghost" type="button" id="map" data-ai>Cerrar: ¿a qué me comprometí?</button>
+        <button class="btn ghost" type="button" id="reset">Otro caso</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $ } = Kit;
+const CASOS = [
+  ["La lotería de la supervivencia", "John Harris: sortear a una persona sana para repartir sus órganos entre varias que mueren"],
+  ["La paradoja de Newcomb", "dos cajas y un predictor casi infalible"],
+  ["El teletransportador", "Derek Parfit: la máquina te destruye acá y arma una copia exacta en Marte"],
+  ["El monstruo de utilidad", "Robert Nozick: un ser que disfruta cada recurso mucho más que cualquiera"],
+  ["La conclusión repugnante", "Derek Parfit: una población enorme con vidas apenas dignas de vivirse"],
+  ["El violinista", "Judith Thomson: despertás conectado a un desconocido que depende de tu cuerpo"],
+  ["La toxina de Kavka", "te pagan por tener hoy la intención de tomar mañana un veneno inofensivo pero doloroso"],
+  ["Los dos conductores", "Thomas Nagel y la suerte moral: misma imprudencia, distinto resultado"],
+  ["Los que se van de Omelas", "Ursula Le Guin: una ciudad feliz que depende del sufrimiento de un chico"],
+  ["La máquina de experiencias", "Robert Nozick: una vida perfecta, simulada, sin vuelta atrás"],
+  ["El estanque", "Peter Singer: un chico se ahoga a tu lado y otro a diez mil kilómetros"],
+  ["La Bella Durmiente", "probabilidad, amnesia y una moneda"],
+];
+let meta = { caso: "", stage: "setup" };
+let elegido = 0;
+
+const chat = Kit.chat({
+  log: $("#log"), form: $("#composer"), input: $("#reply"), onChange: update,
+  brief: () => `Conducís un experimento mental por turnos, como un profesor de filosofía que no da su opinión.
+
+Caso: ${meta.caso}.
+
+Reglas:
+- Primer turno: planteá el caso en segunda persona, concreto y situado, en hasta 130 palabras. No nombres al autor ni las posiciones filosóficas todavía. Cerrá preguntando qué hace el usuario y por qué.
+- Turnos siguientes: primero decí en una oración qué principio leés detrás de su respuesta. Después cambiá UNA sola variable del caso, la que más presione ese principio, y volvé a preguntar. No juzgues la respuesta ni digas cuál es la correcta.
+- Si la respuesta esquiva el dilema (una tercera vía que el caso no admite), cerrá esa salida y repreguntá.
+- Cuando se te pida el cierre, recién ahí nombrá autor, posiciones clásicas y dónde cae el usuario.
+- Español rioplatense con voseo. Sin emojis, sin elogios. Entre 70 y 140 palabras por turno, en prosa.`,
+});
+
+function update() {
+  $("#setup").hidden = meta.stage !== "setup";
+  $("#play").hidden = meta.stage !== "play";
+  $("#topic").textContent = meta.titulo || "";
+  const n = chat.userTurns();
+  $("#meter").textContent = n ? "Variantes respondidas: " + n : "Caso inicial";
+  $("#map").disabled = chat.isBusy() || n < 2;
+}
+function start(i) {
+  meta = { titulo: CASOS[i][0], caso: CASOS[i][0] + " (" + CASOS[i][1] + ")", stage: "play" };
+  chat.clear(); update();
+  chat.send("Planteame el caso.", { hidden: true });
+}
+
+Kit.chips($("#casos"), CASOS.map((c) => c[0]), (t, b) => {
+  elegido = CASOS.findIndex((c) => c[0] === t);
+  document.querySelectorAll("#casos .chip").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$("#casos .chip").setAttribute("aria-pressed", "true");
+$("#start").onclick = () => start(elegido);
+$("#random").onclick = () => start(Math.floor(Math.random() * CASOS.length));
+$("#map").onclick = () => chat.send(
+  "Cerremos. En hasta 260 palabras y con apartados en negrita: Qué principios usé. Dónde fui consistente y dónde cambié de criterio entre variantes. De quién es el caso y cuáles son las posiciones clásicas. Con cuál me alinean mis respuestas y qué costo tiene sostenerla. Sin elogios.",
+  { hidden: true });
+$("#reset").onclick = () => { meta.stage = "setup"; chat.clear(); update(); };
+
+Kit.boot((d) => {
+  if (d && d.meta) { meta = d.meta; chat.load(d.messages); }
+  update();
+}, () => ({ meta, messages: chat.state() }));
+</script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palabra de campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+:root { --h: 110; --tile: 58px; }
+.board { display: grid; gap: 6px; justify-content: start; }
+.rowt { display: grid; grid-template-columns: repeat(5, var(--tile)); gap: 6px; }
+.tile { width: var(--tile); height: var(--tile); display: grid; place-items: center; font: 800 30px/1 var(--display); text-transform: uppercase; border: 2px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); }
+.tile.filled { border-color: var(--muted); }
+.tile.hit { background: var(--good); border-color: var(--good); color: var(--bg); }
+.tile.near { background: var(--warn); border-color: var(--warn); color: var(--bg); border-style: dashed; border-color: var(--bg); }
+.tile.miss { background: var(--line); border-color: var(--line); color: var(--muted); }
+.kb { display: flex; flex-direction: column; gap: 6px; max-width: 520px; }
+.kb div { display: flex; gap: 5px; }
+.key { flex: 1 1 0; min-width: 0; height: 50px; font: 600 15px/1 var(--body); text-transform: uppercase; color: var(--ink); background: var(--soft); border: 1px solid transparent; border-radius: 4px; cursor: pointer; padding: 0; }
+.key.wide { flex: 1.6 1 0; font-size: 12px; }
+.key.hit { background: var(--good); color: var(--bg); } .key.near { background: var(--warn); color: var(--bg); } .key.miss { background: transparent; border-color: var(--line); color: var(--muted); }
+.stats { display: flex; gap: 24px; flex-wrap: wrap; }
+.stats b { display: block; font: 800 30px/1 var(--display); font-variant-numeric: tabular-nums; }
+.stats span { font: 500 12px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); align-items: center; }
+.legend .tile { width: 22px; height: 22px; font-size: 12px; display: inline-grid; vertical-align: middle; margin-right: 6px; }
+@media (max-width: 380px) { :root { --tile: 50px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para jugar</p>
+    <h1>Palabra de campo</h1>
+    <p class="lede">Cinco letras, seis intentos, y todas las respuestas salen del campo: hacienda, pasturas, herramientas, monte. Sin tildes; la Ñ cuenta.</p>
+  </header>
+
+  <div class="legend">
+    <span><span class="tile hit">A</span>en su lugar</span>
+    <span><span class="tile near">A</span>está, en otro lugar</span>
+    <span><span class="tile miss">A</span>no está</span>
+  </div>
+
+  <div id="board" class="board" role="grid" aria-label="Tablero"></div>
+  <p id="msg" class="note" role="status">Escribí con el teclado o tocá las letras. Vale cualquier combinación de cinco letras.</p>
+  <div id="kb" class="kb"></div>
+
+  <section class="panel">
+    <div class="stats">
+      <div><b id="s-j">0</b><span>Jugadas</span></div>
+      <div><b id="s-g">0</b><span>Ganadas</span></div>
+      <div><b id="s-r">0</b><span>Racha</span></div>
+    </div>
+    <div class="row"><button id="nueva" class="btn" type="button">Otra palabra</button></div>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $ } = Kit;
+const PALABRAS = ("VACAS TOROS POTRO YEGUA MONTE PASTO TRIGO SORGO AVENA ARADO TAMBO TROPA LAZOS PAMPA CAMPO ARREO YERRA MARCA SILOS FARDO ROLLO MANGA BRETE CERCO POSTE BARRO SUELO HUMUS GRAMA CARDO CHACO PALMA ÑANDU ZORRO CUERO CARNE ASADO GRASA LECHE QUESO OVEJA CABRA CERDO POLLO GALLO BOZAL FRENO FACON BOINA BOTAS YERBA FOGON BRASA HACHA SURCO RIEGO ZANJA JUNCO RODEO LOTES CARGA KILOS FERIA JAULA CHATA CARRO RUEDA YUNTA MULAS BURRO TORDO OVERO ZAINO DOMAR PARIR DISCO GRANO CHALA MELON NUBES RAYOS NORTE CALOR POLVO ARENA GREDA ABONO BOSTA GUANO ABEJA PANAL MOSCA SARNA DOSIS POZOS BOMBA NORIA BALDE LEÑAS CAÑAS RECAO").split(" ");
+const FILAS = ["QWERTYUIOP", "ASDFGHJKLÑ", "ZXCVBNM"];
+const MAX = 6;
+let st = { answer: "", guesses: [], current: "", done: false, counted: false };
+
+/*PURE*/
+// Devuelve por letra: "hit" (en su lugar), "near" (está en otro lugar) o "miss".
+// Las letras repetidas se descuentan: primero los aciertos exactos, después las presentes.
+function puntuar(guess, answer) {
+  const res = Array(5).fill("miss"), libres = {};
+  for (let i = 0; i < 5; i++) { if (guess[i] === answer[i]) res[i] = "hit"; else libres[answer[i]] = (libres[answer[i]] || 0) + 1; }
+  for (let i = 0; i < 5; i++) { if (res[i] !== "hit" && libres[guess[i]] > 0) { res[i] = "near"; libres[guess[i]] -= 1; } }
+  return res;
+}
+/*END*/
+
+function stats() { try { return JSON.parse(localStorage.getItem("palabra-campo") || "null") || { j: 0, g: 0, r: 0 }; } catch (_) { return { j: 0, g: 0, r: 0 }; } }
+function guardar(s) { try { localStorage.setItem("palabra-campo", JSON.stringify(s)); } catch (_) {} }
+const NOMBRE = { hit: "en su lugar", near: "en otro lugar", miss: "no está" };
+
+function render() {
+  const board = $("#board"); board.innerHTML = "";
+  const mejor = {};
+  for (let r = 0; r < MAX; r++) {
+    const row = document.createElement("div"); row.className = "rowt"; row.setAttribute("role", "row");
+    const g = st.guesses[r], marks = g ? puntuar(g, st.answer) : null;
+    const letras = g || (r === st.guesses.length && !st.done ? st.current : "");
+    for (let c = 0; c < 5; c++) {
+      const t = document.createElement("div"); const ch = letras[c] || "";
+      t.className = "tile" + (marks ? " " + marks[c] : ch ? " filled" : "");
+      t.textContent = ch; t.setAttribute("role", "gridcell");
+      if (marks) { t.setAttribute("aria-label", ch + ", " + NOMBRE[marks[c]]);
+        const o = { miss: 1, near: 2, hit: 3 }; if (!mejor[ch] || o[marks[c]] > o[mejor[ch]]) mejor[ch] = marks[c]; }
+      row.appendChild(t);
+    }
+    board.appendChild(row);
+  }
+  const kb = $("#kb"); kb.innerHTML = "";
+  FILAS.forEach((f, i) => {
+    const d = document.createElement("div");
+    const teclas = i === 2 ? ["ENVIAR", ...f, "BORRAR"] : [...f];
+    teclas.forEach((k) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "key" + (k.length > 1 ? " wide" : "") + (mejor[k] ? " " + mejor[k] : "");
+      b.textContent = k; b.onclick = () => tecla(k);
+      d.appendChild(b);
+    });
+    kb.appendChild(d);
+  });
+  const s = stats();
+  $("#s-j").textContent = s.j; $("#s-g").textContent = s.g; $("#s-r").textContent = s.r;
+}
+function say(t) { $("#msg").textContent = t; }
+
+function tecla(k) {
+  if (st.done) return;
+  if (k === "BORRAR") st.current = st.current.slice(0, -1);
+  else if (k === "ENVIAR") return enviar();
+  else if (st.current.length < 5) st.current += k;
+  render();
+}
+function enviar() {
+  if (st.current.length < 5) { say("Faltan letras: son cinco."); return; }
+  st.guesses.push(st.current);
+  const gano = st.current === st.answer;
+  st.current = "";
+  if (gano || st.guesses.length >= MAX) {
+    st.done = true;
+    if (!st.counted) { const s = stats(); s.j += 1; if (gano) { s.g += 1; s.r += 1; } else s.r = 0; guardar(s); st.counted = true; }
+    say(gano ? "Adentro. La sacaste en " + st.guesses.length + (st.guesses.length === 1 ? " intento." : " intentos.") : "Se acabaron los intentos. Era " + st.answer + ".");
+  } else say("Te quedan " + (MAX - st.guesses.length) + (MAX - st.guesses.length === 1 ? " intento." : " intentos."));
+  render();
+}
+function nueva() {
+  let a; do a = Kit.pick(PALABRAS); while (a === st.answer);
+  st = { answer: a, guesses: [], current: "", done: false, counted: false };
+  say("Palabra nueva. Vale cualquier combinación de cinco letras.");
+  render();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "Enter") { if (document.activeElement && document.activeElement.tagName === "BUTTON") return; e.preventDefault(); tecla("ENVIAR"); }
+  else if (e.key === "Backspace") { e.preventDefault(); tecla("BORRAR"); }
+  else if (/^[a-zñ]$/i.test(e.key)) tecla(e.key.toUpperCase());
+});
+$("#nueva").onclick = (e) => { nueva(); e.target.blur(); };
+
+Kit.boot((d) => { if (d && d.answer) { st = d; render(); } else nueva(); }, () => st);
+</script>
+</body>
+</html>

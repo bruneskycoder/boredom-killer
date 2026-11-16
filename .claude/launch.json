@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "muestra",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["herramientas/servidor.py", "--red"],
+      "port": 8000
+    }
+  ]
+}

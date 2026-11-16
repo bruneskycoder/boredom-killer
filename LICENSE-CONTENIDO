@@ -1,0 +1,13 @@
+Contenido propio de Boredom Killer / Original content of Boredom Killer
+
+Copyright (c) 2026 bruneskycoder
+
+Licencia / License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Texto completo / Full text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+Alcance / Scope: los textos de la interfaz (app/nucleo/textos-app.js y modos/*/textos.js),
+la documentación (README, PLAN, docs/) y los íconos (herramientas/iconos.py).
+UI texts, documentation and icons. The source code is under MIT (see LICENSE).
+
+No alcanza a datos ni tipografías de terceros: cada uno conserva su licencia, listada en CREDITOS.md.
+It does not cover third-party data or fonts: each keeps its own license, listed in CREDITOS.md.

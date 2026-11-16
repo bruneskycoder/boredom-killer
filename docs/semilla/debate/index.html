@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Abogado del diablo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>:root { --h: 25; }</style>
+</head>
+<body data-needs-ai>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para pensar</p>
+    <h1>Abogado del diablo</h1>
+    <p class="lede">Vos defendés una tesis. Claude la ataca con el mejor argumento en contra que encuentre, esté o no de acuerdo. Al final pedís veredicto.</p>
+  </header>
+
+  <section id="setup" class="panel">
+    <div class="field">
+      <label for="tesis">Tu tesis</label>
+      <textarea id="tesis" rows="2" placeholder="Una afirmación que estés dispuesto a defender"></textarea>
+    </div>
+    <div class="field">
+      <span class="label">O arrancá con una de estas</span>
+      <div id="ideas" class="chips"></div>
+    </div>
+    <div class="field">
+      <label for="nivel">Intensidad</label>
+      <select id="nivel">
+        <option value="amable">Sparring: firme, concede los puntos buenos</option>
+        <option value="fiscal" selected>Fiscal: no deja pasar una imprecisión</option>
+        <option value="brutal">Sin piedad: busca el punto débil y no lo suelta</option>
+      </select>
+    </div>
+    <div class="row"><button id="start" class="btn" type="button" data-ai>Empezar el debate</button></div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="statusbar">
+      <p id="topic" class="topic"></p>
+      <p id="meter" class="meter"></p>
+    </div>
+    <div id="log" class="log" aria-live="polite"></div>
+    <form id="composer" class="composer">
+      <label class="sr" for="reply">Tu respuesta</label>
+      <textarea id="reply" rows="3" placeholder="Tu defensa. Enter envía, Shift+Enter baja de línea."></textarea>
+      <div class="row">
+        <button class="btn" type="submit">Responder</button>
+        <button class="btn ghost" type="button" id="verdict" data-ai>Pedir veredicto</button>
+        <button class="btn ghost" type="button" id="reset">Otra tesis</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $ } = Kit;
+const NIVEL = {
+  amable: "Sparring. Firme, pero concedés sin vueltas los puntos bien defendidos.",
+  fiscal: "Fiscal. No dejás pasar ninguna imprecisión, definición floja ni dato sin respaldo.",
+  brutal: "Sin piedad. Buscás el punto más débil y no lo soltás hasta que quede resuelto. Duro con los argumentos, nunca con la persona.",
+};
+const IDEAS = [
+  "La IA va a destruir más empleo del que crea",
+  "El libre albedrío no existe",
+  "El pastoreo racional es más rentable que el continuo",
+  "La universidad ya no vale lo que cuesta",
+  "Un texto escrito con IA sigue siendo del autor",
+  "El progreso moral es una ilusión",
+];
+let meta = { tesis: "", nivel: "fiscal", stage: "setup" };
+
+const chat = Kit.chat({
+  log: $("#log"), form: $("#composer"), input: $("#reply"), onChange: update,
+  brief: () => `Sos el abogado del diablo en un debate por turnos. El usuario defiende esta tesis: «${meta.tesis}». Vos la atacás aunque estés de acuerdo con ella.
+
+Reglas:
+- Atacá la versión más fuerte de la tesis, nunca un hombre de paja.
+- Un solo argumento central por turno, desarrollado. Cerrá con una pregunta o un desafío concreto que obligue a responder.
+- Si el usuario responde bien un punto, reconocelo en una línea y abrí otro flanco. Si lo esquiva, decí que lo esquivó y repreguntá.
+- Señalá supuestos ocultos, generalizaciones y saltos de correlación a causalidad.
+- No inventes cifras ni estudios. Si usás un dato de memoria, decí que es aproximado.
+- Intensidad: ${NIVEL[meta.nivel]}
+- Español rioplatense con voseo. Sin emojis, sin elogios, sin frases motivacionales.
+- Entre 90 y 160 palabras por turno, en prosa, sin títulos. La única excepción es el veredicto, cuando se te pida.`,
+});
+
+function update() {
+  $("#setup").hidden = meta.stage !== "setup";
+  $("#play").hidden = meta.stage !== "play";
+  $("#topic").textContent = "«" + meta.tesis + "»";
+  const n = chat.userTurns();
+  $("#meter").textContent = n ? "Tus respuestas: " + n : "Abre Claude";
+  $("#verdict").disabled = chat.isBusy() || n < 1;
+}
+
+Kit.chips($("#ideas"), IDEAS, (t) => { $("#tesis").value = t; $("#tesis").focus(); });
+
+$("#start").onclick = () => {
+  const t = $("#tesis").value.trim();
+  if (!t) { $("#tesis").focus(); return; }
+  meta = { tesis: t.replace(/^[«"“]|[»"”]$/g, ""), nivel: $("#nivel").value, stage: "play" };
+  chat.clear(); update();
+  chat.send("Defiendo esa tesis. Abrí vos con tu ataque más fuerte.", { hidden: true });
+};
+$("#verdict").onclick = () => chat.send(
+  "Cerremos acá. Dame el veredicto, en hasta 280 palabras y con estos cinco apartados en negrita: Mi mejor argumento. Tu mejor argumento. Qué quedó sin responder de cada lado. Quién ganó el intercambio y por qué. Qué versión más defendible de la tesis sobrevive. Sin elogios ni consuelo.",
+  { hidden: true });
+$("#reset").onclick = () => { meta.stage = "setup"; chat.clear(); update(); };
+
+Kit.boot((d) => {
+  if (d && d.meta) { meta = d.meta; chat.load(d.messages); }
+  update();
+}, () => ({ meta, messages: chat.state() }));
+</script>
+</body>
+</html>

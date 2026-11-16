@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0c0c">
+<title>Muestra de diseño — Boredom Killer</title>
+<link rel="stylesheet" href="../app/estilos/base.css">
+<link rel="stylesheet" href="./muestra.css">
+</head>
+<body>
+<canvas class="fondo" id="fondo" aria-hidden="true"></canvas>
+
+<main class="hoja">
+  <header class="portada">
+    <p class="etiqueta acento">Muestra de diseño · paso 2a</p>
+    <h1>Boredom Killer</h1>
+    <p class="bajada">Enciclopedia y arcade en la misma página. Tres reglas ordenan todo lo demás:</p>
+    <ol class="reglas">
+      <li><span class="etiqueta">01</span> Lo que se lee va en papel; lo que se juega va en negro.</li>
+      <li><span class="etiqueta">02</span> El contenido habla en serif; la máquina habla en monoespaciada.</li>
+      <li><span class="etiqueta">03</span> El color saturado es puntual: marca dónde tocar y qué pasó. Fallar no se pinta de rojo, se apaga.</li>
+    </ol>
+  </header>
+
+  <section class="seccion" id="paleta">
+    <header><p class="etiqueta">01</p><h2>Paleta</h2></header>
+    <h3 class="etiqueta">Negro · el juego</h3>
+    <div class="colores" data-colores="negro:Negro:fondo|tablero:Tablero:paneles|hundido:Hundido:teclas, fallos|borde:Borde:líneas finas|borde-fuerte:Borde fuerte:contornos|gris:Gris:texto secundario|claro:Claro:texto"></div>
+    <h3 class="etiqueta">Papel · la lectura</h3>
+    <div class="colores" data-colores="papel:Papel:láminas, fichas|papel-claro:Papel claro:tierra destacada|papel-hondo:Papel hondo:tierra vecina|mar:Mar:agua|trazo:Trazo:fronteras vecinas|tinta-suave:Tinta suave:texto secundario|tinta:Tinta:texto, filetes"></div>
+    <h3 class="etiqueta">Color · puntual</h3>
+    <div class="colores" data-colores="bermellon:Bermellón:marca, cursor, tu toque|bermellon-tinta:Bermellón tinta:el mismo, sobre papel|verde:Verde:acierto|ambar:Ámbar:casi|cian:Cian:familia Pensar|rosa:Rosa:familia Crear"></div>
+    <h3 class="etiqueta">Un píxel de color por familia</h3>
+    <div class="fila" id="sel-familia">
+      <button class="chip f-pensar" aria-pressed="false"><i class="punto"></i>Pensar</button>
+      <button class="chip f-jugar" aria-pressed="true"><i class="punto"></i>Jugar</button>
+      <button class="chip f-crear" aria-pressed="false"><i class="punto"></i>Crear</button>
+      <button class="chip f-mirar" aria-pressed="false"><i class="punto"></i>Mirar</button>
+      <button class="chip f-aprender" aria-pressed="false"><i class="punto"></i>Aprender</button>
+    </div>
+  </section>
+
+  <section class="seccion" id="tipos">
+    <header><p class="etiqueta">02</p><h2>Tipografía</h2>
+      <p class="nota">Cambiá entre incluidas y del sistema con la barra de abajo. Ahora: <span id="tipos-ahora"></span>.</p></header>
+    <div class="dos">
+      <div class="panel">
+        <p class="etiqueta">Lectura · sobre negro</p>
+        <h3 class="grande">¿Dónde queda Ushuaia?</h3>
+        <p>Cada modo termina, y lo que se hace se acumula: vocabulario, marcas, mapa de lo que ya se sabe. <em>Nada de scroll infinito ni logros inflados.</em></p>
+        <p class="nota">Texto secundario, 15 px. Ñandú, pingüino, cigüeña; ¡años!</p>
+      </div>
+      <div class="panel papel sin-borde">
+        <p class="etiqueta">Lectura · sobre papel</p>
+        <h3 class="grande">¿Dónde queda Ushuaia?</h3>
+        <p>Cada modo termina, y lo que se hace se acumula: vocabulario, marcas, mapa de lo que ya se sabe. <em>Nada de scroll infinito ni logros inflados.</em></p>
+        <p class="nota">Texto secundario, 15 px. Ñandú, pingüino, cigüeña; ¡años!</p>
+      </div>
+    </div>
+    <div class="panel">
+      <p class="etiqueta">Máquina · etiquetas, botones, marcadores</p>
+      <p class="cifra">8.420</p>
+      <p class="maquina">RONDA 07/10 · RACHA 4 · 312 KM DE ERROR</p>
+      <p class="maquina tenue">abcdefghijklmnñopqrstuvwxyz 0123456789 ¿? ¡! áéíóú</p>
+    </div>
+  </section>
+
+  <section class="seccion" id="botones">
+    <header><p class="etiqueta">03</p><h2>Botones y controles</h2></header>
+    <div class="fila">
+      <button class="boton">Jugar <i class="flecha"></i></button>
+      <button class="boton segundo">Otra ronda</button>
+      <button class="boton quieto">Salir</button>
+      <button class="boton" disabled>Sin datos</button>
+    </div>
+    <div class="fila">
+      <div class="selector" id="sel-idioma" role="group" aria-label="Idioma">
+        <button aria-pressed="true">Español</button><button aria-pressed="false">English</button>
+      </div>
+      <p class="etiqueta teclas"><kbd>↑</kbd> <kbd>↓</kbd> moverse · <kbd>Enter</kbd> jugar · <kbd>Esc</kbd> salir</p>
+    </div>
+    <input class="campo" type="text" placeholder="Escribí lo que escuchaste" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Campo de ejemplo">
+  </section>
+
+  <section class="seccion" id="tarjetas">
+    <header><p class="etiqueta">04</p><h2>Tarjetas</h2>
+      <p class="nota">Las de modo van en negro; tocá una y el cursor (dos marcas de registro de imprenta) salta a esa.</p></header>
+    <div class="grilla" id="lobby">
+      <button class="tarjeta" aria-current="true">
+        <span class="cabeza etiqueta"><span class="f-jugar"><i class="punto"></i>Jugar</span><span>5 min</span></span>
+        <h3>Palabra de campo</h3>
+        <span class="linea">Cinco letras, seis intentos.</span>
+      </button>
+      <button class="tarjeta">
+        <span class="cabeza etiqueta"><span class="f-aprender"><i class="punto"></i>Aprender</span><span>5 min</span></span>
+        <h3>Dónde queda</h3>
+        <span class="linea">Un mapa mudo y diez lugares.</span>
+      </button>
+      <button class="tarjeta">
+        <span class="cabeza etiqueta"><span class="f-aprender"><i class="punto"></i>Aprender</span><span>10 min</span></span>
+        <h3>Inglés</h3>
+        <span class="linea">Tarjetas que vuelven el día justo.</span>
+      </button>
+    </div>
+
+    <div class="dos">
+      <div class="panel tablero">
+        <p class="etiqueta">Tablero · acierto lleno, casi en contorno, fallo apagado</p>
+        <div class="casillas"><span class="casilla acierto">C</span><span class="casilla casi">O</span><span class="casilla casi">P</span><span class="casilla fallo">L</span><span class="casilla casi">A</span></div>
+        <div class="casillas"><span class="casilla">C</span><span class="casilla">A</span><span class="casilla cursor"></span><span class="casilla"></span><span class="casilla"></span></div>
+        <div class="fila teclado">
+          <button class="tecla acierto">C</button><button class="tecla casi">O</button><button class="tecla fallo">L</button><button class="tecla">M</button><button class="tecla">Ñ</button><button class="tecla">Enter</button>
+        </div>
+      </div>
+      <div class="panel marcador">
+        <p class="etiqueta">Marcador · ronda 7 de 10</p>
+        <p class="cifra">333<small> km</small></p>
+        <div class="medidor" style="--v:70%"><i></i></div>
+        <p class="etiqueta">Racha 4 · 8.420 puntos</p>
+      </div>
+    </div>
+
+    <article class="ficha papel">
+      <p class="cabeza etiqueta"><span>Verbo</span><span class="nivel">B1</span></p>
+      <h3 class="voz">abandon</h3>
+      <p class="ejemplo" lang="en">We must <b>abandon</b> ship.</p>
+      <p class="traduccion">Debemos abandonar la nave.</p>
+      <div class="fila">
+        <button class="boton segundo">Escuchar</button>
+        <button class="boton segundo">No la sabía</button>
+        <button class="boton">La sabía</button>
+      </div>
+      <p class="etiqueta">Tatoeba n.º 1963044 · CK / Eremon</p>
+    </article>
+  </section>
+
+  <section class="seccion" id="lamina">
+    <header><p class="etiqueta">05</p><h2>Lámina de mapa</h2>
+      <p class="nota">El atlas en papel y, encima, las marcas del juego en bermellón y negro: tu toque, el lugar real y los kilómetros de error. Es un dibujo fijo; el zoom y el toque se construyen en el paso 4.</p></header>
+    <figure class="lamina papel">
+      <div class="lamina-cabeza"><span class="etiqueta">Lám. II</span><span class="lamina-titulo">República Argentina</span><span class="etiqueta">2 / 3</span></div>
+      <div class="lamina-cuadro"><canvas id="mapa" role="img" aria-label="Mapa de la Argentina con una jugada de ejemplo"></canvas></div>
+      <figcaption class="lamina-pie etiqueta"><span>Equirrectangular · 38° S</span><span>Natural Earth</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="seccion" id="fondo-seccion">
+    <header><p class="etiqueta">06</p><h2>Fondo</h2>
+      <p class="nota">Es lo que se mueve detrás de toda la página. Cada modo le va a fijar la tensión y el tono; el lobby queda en calmo.</p></header>
+    <div class="fila">
+      <div class="selector" id="sel-fondo" role="group" aria-label="Intensidad del fondo">
+        <button data-valor="0.1" aria-pressed="true">Calmo</button><button data-valor="0.5" aria-pressed="false">Medio</button><button data-valor="0.95" aria-pressed="false">Tenso</button>
+      </div>
+      <div class="fila" id="sel-tono" role="group" aria-label="Tono del fondo">
+        <button class="chip f-jugar" data-valor="bermellon" aria-pressed="true"><i class="punto"></i>Bermellón</button>
+        <button class="chip f-aprender" data-valor="verde" aria-pressed="false"><i class="punto"></i>Verde</button>
+        <button class="chip f-pensar" data-valor="cian" aria-pressed="false"><i class="punto"></i>Cian</button>
+        <button class="chip f-mirar" data-valor="ambar" aria-pressed="false"><i class="punto"></i>Ámbar</button>
+      </div>
+    </div>
+    <div class="ventana"><span class="etiqueta">Ventana al fondo</span></div>
+  </section>
+
+  <section class="seccion" id="sonidos">
+    <header><p class="etiqueta">07</p><h2>Sonidos</h2>
+      <p class="nota">Guitarra criolla sintetizada, sin archivos de audio: punteo que sube, dos notas que bajan con golpe en la caja, una nota sola y chan-chan. En el iPhone no suenan con el interruptor lateral en silencio.</p></header>
+    <div class="grilla">
+      <button class="boton segundo" data-sonido="acierto">Acierto</button>
+      <button class="boton segundo" data-sonido="error">Error</button>
+      <button class="boton segundo" data-sonido="turno">Turno</button>
+      <button class="boton segundo" data-sonido="fin">Fin</button>
+    </div>
+  </section>
+</main>
+
+<div class="barra">
+  <span class="etiqueta">Tipos</span>
+  <div class="selector" id="sel-tipos" role="group" aria-label="Tipografías">
+    <button data-valor="incluidas" aria-pressed="true">Incluidas</button><button data-valor="sistema" aria-pressed="false">Sistema</button>
+  </div>
+</div>
+
+<script type="module" src="./muestra.js"></script>
+</body>
+</html>

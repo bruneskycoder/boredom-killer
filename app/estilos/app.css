@@ -1,0 +1,75 @@
+/* Boredom Killer — estilos de la app (lobby, ajustes, modos). Lo compartido está en base.css. */
+
+body { min-height: 100vh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+.cabecera { display: flex; justify-content: space-between; align-items: center; max-width: var(--columna); margin: 0 auto; padding: 10px 18px 0; }
+.marca { display: inline-flex; align-items: center; gap: 10px; min-height: var(--toque); font: 600 13px/1 var(--maquina); letter-spacing: .16em; text-transform: uppercase; color: var(--claro); text-decoration: none; }
+.marca .punto { background: var(--bermellon); }
+.nav { display: flex; }
+.cabecera .boton.quieto { text-decoration: none; letter-spacing: .12em; }
+
+#vista { max-width: var(--columna); margin: 0 auto; padding: 18px 18px 72px; }
+#vista > section { display: flex; flex-direction: column; gap: 22px; }
+.entra { animation: entra .24s ease-out both; }
+@keyframes entra { from { opacity: 0; transform: translateY(8px); } }
+
+.lobby h1 { max-width: 12ch; }
+.titulo-chico { font: 600 clamp(32px, 9vw, 48px)/1 var(--lectura); letter-spacing: -.02em; }
+.grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; padding: 5px; }
+.fila { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.bloque { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding-bottom: 22px; border-bottom: 1px solid var(--borde); }
+.bloque:last-child { border-bottom: 0; }
+.aviso { display: flex; flex-direction: column; gap: 12px; border-left: 3px solid var(--bermellon); }
+.alerta { color: var(--ambar); }
+.teclas { margin-top: 4px; }
+@media (hover: none) { .teclas { display: none; } }
+
+.modo-cabeza { display: flex; justify-content: space-between; align-items: center; }
+.modo-cabeza .boton.quieto { padding-left: 0; text-decoration: none; }
+.pendiente { display: flex; flex-direction: column; gap: 10px; }
+
+/* Palabra de campo */
+.palabra-mesa { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.palabra-tablero { display: flex; flex-direction: column; gap: 6px; }
+.palabra-aviso { min-height: 1.5em; text-align: center; }
+.teclado { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 480px; }
+.fila-teclas { display: flex; justify-content: center; gap: 5px; }
+.teclado .tecla { flex: 1 1 0; min-width: 0; padding: 0; }
+.teclado .tecla.ancha { flex: 1.6 1 0; font-size: 12px; }
+.palabra-resultado { display: flex; flex-direction: column; gap: 12px; }
+.cifra-chica { font: 600 24px/1.2 var(--maquina); letter-spacing: -.01em; }
+
+/* Dónde queda */
+.mapa-cabeza { display: flex; flex-direction: column; gap: 6px; }
+.mapa-lienzo { touch-action: none; cursor: crosshair; max-height: 58vh; }
+.mapa-fin { display: flex; flex-direction: column; gap: 12px; }
+
+/* Inglés */
+.ing-panel { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.ing-dorso { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.ficha > .fila, .ficha > div { margin-top: 14px; }
+.ing-salida { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.dic-linea { font-size: 20px; line-height: 1.5; }
+.dic-ok { color: var(--verde); }
+.dic-mal { color: var(--gris); text-decoration: line-through; text-decoration-color: var(--ambar); }
+
+/* Carnet */
+.carnet { display: grid; grid-template-columns: 1fr auto; gap: 8px 18px; margin: 0; width: 100%; }
+.carnet dd { margin: 0; font: 600 17px/1.2 var(--maquina); text-align: right; }
+.carnet dt { align-self: center; }
+
+/* Cabecera angosta: la marca no se parte en dos renglones */
+.marca { white-space: nowrap; }
+@media (max-width: 420px) { .cabecera .boton.quieto { padding: 0 6px; letter-spacing: .06em; font-size: 12px; } .marca { letter-spacing: .1em; } }
+
+/* Silueta */
+.silueta-lienzo { aspect-ratio: 4 / 3; max-height: 42vh; }
+.silueta-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.silueta-opcion { justify-content: flex-start; text-align: left; min-height: var(--toque); height: auto; padding: 10px 16px; line-height: 1.25; text-transform: none; letter-spacing: .02em; font-size: 15px; }
+.silueta-opcion:disabled { opacity: .45; cursor: default; }
+.silueta-opcion.es-correcta:disabled { opacity: 1; background: var(--verde); border-color: var(--verde); color: var(--negro); }
+.silueta-opcion.es-errada:disabled { text-decoration: line-through; }
+.silueta-fin { display: flex; flex-direction: column; gap: 12px; }
+
+/* El cuerpo de cualquier modo separa sus bloques */
+.modo-cuerpo { display: flex; flex-direction: column; gap: 18px; }

@@ -1,0 +1,12 @@
+# Material privado que no se publica
+docs/origen/prompt-original.md
+docs/investigacion/completo/
+
+# Descargas crudas de datasets (se regeneran con herramientas/)
+herramientas/crudo/
+
+__pycache__/
+*.pyc
+.claude/settings.local.json
+Thumbs.db
+.DS_Store

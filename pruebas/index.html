@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruebas — Boredom Killer</title>
+<style>
+  body { margin: 0; padding: 24px; background: #0b0c0c; color: #ece7d9; font: 15px/1.6 ui-monospace, Consolas, monospace; }
+  h1 { font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: #8f958d; margin: 0 0 6px; }
+  #resumen { font-size: 28px; font-weight: 600; margin: 0 0 18px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 3px 0; }
+  .ok { color: #3ddc84; }
+  .mal { color: #ff4f2e; }
+</style>
+</head>
+<body>
+<h1>Pruebas de la lógica · abrir con python herramientas/servidor.py</h1>
+<p id="resumen">corriendo…</p>
+<ul id="lista"></ul>
+<script type="module">
+  import { correr } from './corredor.js';
+  import './guardado.test.js';
+  import './textos.test.js';
+  import './instalar.test.js';
+  import './palabra.test.js';
+  import './geo.test.js';
+  import './ingles.test.js';
+  import './elegir.test.js';
+  import './silueta.test.js';
+  await correr();
+</script>
+</body>
+</html>

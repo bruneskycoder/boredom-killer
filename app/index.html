@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0c0c">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Boredom Killer">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Boredom Killer</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./iconos/icono-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./iconos/apple-touch-icon.png">
+<link rel="stylesheet" href="./estilos/base.css">
+<link rel="stylesheet" href="./estilos/app.css">
+</head>
+<body>
+<canvas class="fondo" id="fondo" aria-hidden="true"></canvas>
+<header class="cabecera">
+  <a class="marca" id="marca" href="#/"><i class="punto" aria-hidden="true"></i><span></span></a>
+  <nav class="nav"><a class="boton quieto" id="enlace-carnet" href="#/carnet"></a><a class="boton quieto" id="enlace-ajustes" href="#/ajustes"></a></nav>
+</header>
+<main id="vista"></main>
+<script type="module" src="./nucleo/app.js"></script>
+</body>
+</html>

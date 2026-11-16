@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trivia brava</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+:root { --h: 190; }
+.q { font: 700 clamp(21px, 4.6vw, 27px)/1.25 var(--display); margin: 0; text-wrap: balance; }
+.answers { display: flex; flex-direction: column; gap: 8px; }
+.ans { display: grid; grid-template-columns: 1.6em 1fr; gap: 10px; text-align: left; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; cursor: pointer; }
+.ans:hover:not(:disabled) { border-color: var(--accent); }
+.ans .k { font: 500 14px/1.6 var(--mono); color: var(--muted); }
+.ans.right { border-color: var(--good); box-shadow: inset 4px 0 0 var(--good); }
+.ans.wrong { border-color: var(--bad); box-shadow: inset 4px 0 0 var(--bad); }
+.ans:disabled { cursor: default; }
+.dots { display: flex; gap: 5px; }
+.dots i { width: 22px; height: 6px; border-radius: 3px; background: var(--line); }
+.dots i.ok { background: var(--good); } .dots i.ko { background: var(--bad); } .dots i.now { background: var(--accent); }
+.score { font: 800 72px/.9 var(--display); font-stretch: 85%; color: var(--accent); margin: 0; font-variant-numeric: tabular-nums; }
+.missed { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; }
+</style>
+</head>
+<body data-needs-ai>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para jugar</p>
+    <h1>Trivia brava</h1>
+    <p class="lede">Ocho preguntas difíciles sobre el tema que elijas. Las arma Claude de memoria, así que alguna respuesta puede ser discutible: la explicación te deja juzgarla.</p>
+  </header>
+
+  <section id="setup" class="panel">
+    <div class="field"><label for="tema">Tema</label><input type="text" id="tema" autocomplete="off" placeholder="Cuanto más específico, mejor"></div>
+    <div id="temas" class="chips"></div>
+    <div class="field">
+      <label for="dif">Dificultad</label>
+      <select id="dif"><option value="dificil">Difícil: para alguien que conoce el tema</option><option value="brutal">Brutal: para alguien que cree que lo domina</option></select>
+    </div>
+    <div class="row"><button id="start" class="btn" type="button" data-ai>Armar la tanda</button><span id="startmsg" class="note" role="status"></span></div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="statusbar"><div id="dots" class="dots" aria-hidden="true"></div><p id="meter" class="meter"></p></div>
+    <p id="q" class="q"></p>
+    <div id="answers" class="answers"></div>
+    <div id="why" class="panel" hidden><p id="whyhead" class="label"></p><p id="whytext"></p>
+      <div class="row"><button id="next" class="btn" type="button">Siguiente</button></div></div>
+  </section>
+
+  <section id="end" class="panel" hidden>
+    <p class="label" id="endtema"></p>
+    <p id="score" class="score"></p>
+    <p id="verdict"></p>
+    <ol id="missed" class="missed"></ol>
+    <div class="row">
+      <button id="more" class="btn" type="button" data-ai>Otra tanda del mismo tema</button>
+      <button id="change" class="btn ghost" type="button">Cambiar de tema</button>
+      <span id="moremsg" class="note" role="status"></span>
+    </div>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $, esc } = Kit;
+const N = 8;
+const TEMAS = ["Historia argentina del siglo XIX", "Filosofía moderna", "Pasturas y manejo ganadero", "Estructuras y materiales de construcción", "Historia económica", "Astronomía", "Literatura latinoamericana", "Geografía del Gran Chaco"];
+let st = { stage: "setup", tema: "", dif: "dificil", qs: [], i: 0, picks: [], vistas: [] };
+
+/*PURE*/
+function preparar(raw) {
+  if (!Array.isArray(raw)) throw new Error("formato");
+  const qs = raw.filter((x) => x && typeof x.p === "string" && Array.isArray(x.o) && x.o.length === 4 && Number.isInteger(x.c) && x.c >= 0 && x.c < 4)
+    .map((x) => {
+      // Se mezclan las opciones para que la correcta no caiga siempre en el mismo lugar.
+      const idx = [0, 1, 2, 3];
+      for (let k = 3; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [idx[k], idx[j]] = [idx[j], idx[k]]; }
+      return { p: x.p, o: idx.map((n) => String(x.o[n])), c: idx.indexOf(x.c), e: String(x.e || "") };
+    });
+  if (qs.length < 3) throw new Error("formato");
+  return qs;
+}
+/*END*/
+
+async function generar(msgEl) {
+  Kit.setBusy(true); msgEl.textContent = "Armando las preguntas…";
+  try {
+    const raw = await Kit.askJSON(`Escribí ${N} preguntas de trivia de opción múltiple sobre: «${st.tema}».
+Dificultad: ${st.dif === "brutal" ? "brutal, para alguien que cree dominar el tema; detalles finos, no rarezas inverificables" : "difícil, para alguien que conoce el tema; nada que se responda por descarte"}.
+Requisitos:
+- Solo hechos establecidos y verificables. Si no estás seguro de una respuesta, no hagas esa pregunta.
+- Una sola opción correcta e indiscutible; las otras tres plausibles y del mismo tipo.
+- Variá los ángulos dentro del tema. Nada de preguntas capciosas.
+- No repitas estas, ya hechas: ${st.vistas.slice(-24).join(" | ") || "ninguna"}.
+- Español rioplatense, sin emojis.
+Respondé SOLO con un arreglo JSON de ${N} objetos: {"p": "pregunta", "o": ["opción", "opción", "opción", "opción"], "c": índice de la correcta (0 a 3), "e": "explicación de una o dos oraciones que justifique la correcta"}`);
+    st.qs = preparar(raw); st.i = 0; st.picks = []; st.stage = "play";
+    st.vistas = st.vistas.concat(st.qs.map((q) => q.p));
+    msgEl.textContent = "";
+  } catch (e) { msgEl.textContent = e.message === "formato" ? "Claude respondió en un formato inesperado. Reintentá." : e.message; }
+  Kit.setBusy(false); render();
+}
+
+function render() {
+  $("#setup").hidden = st.stage !== "setup";
+  $("#play").hidden = st.stage !== "play";
+  $("#end").hidden = st.stage !== "end";
+  if (st.stage === "play") {
+    const q = st.qs[st.i], pick = st.picks[st.i];
+    const done = pick !== undefined;
+    $("#dots").innerHTML = st.qs.map((x, k) => `<i class="${st.picks[k] === undefined ? (k === st.i ? "now" : "") : st.picks[k] === x.c ? "ok" : "ko"}"></i>`).join("");
+    $("#meter").textContent = "Pregunta " + (st.i + 1) + " de " + st.qs.length;
+    $("#q").textContent = q.p;
+    const box = $("#answers"); box.innerHTML = "";
+    q.o.forEach((o, k) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ans" + (done && k === q.c ? " right" : done && k === pick ? " wrong" : "");
+      b.disabled = done;
+      b.innerHTML = `<span class="k">${"ABCD"[k]}</span><span>${esc(o)}</span>`;
+      b.onclick = () => { st.picks[st.i] = k; render(); $("#next").focus(); };
+      box.appendChild(b);
+    });
+    $("#why").hidden = !done;
+    if (done) {
+      $("#whyhead").textContent = pick === q.c ? "Correcto" : "Incorrecto. Era la " + "ABCD"[q.c];
+      $("#whyhead").style.color = pick === q.c ? "var(--good)" : "var(--bad)";
+      $("#whytext").textContent = q.e;
+      $("#next").textContent = st.i + 1 < st.qs.length ? "Siguiente" : "Ver resultado";
+    }
+  }
+  if (st.stage === "end") {
+    const ok = st.qs.filter((q, k) => st.picks[k] === q.c).length, n = st.qs.length, r = ok / n;
+    $("#endtema").textContent = st.tema;
+    $("#score").textContent = ok + "/" + n;
+    $("#verdict").textContent = r === 1 ? "Tanda perfecta. Subí la dificultad o afiná el tema." : r >= .75 ? "Dominás el tema. Las que fallaste están abajo." : r >= .5 ? "Mitad y mitad: conocés el terreno, no los detalles." : r > .25 ? "Por debajo de la mitad. Elegir al azar da 2 de 8." : "Al nivel del azar. Elegir sin leer da 2 de 8.";
+    $("#missed").innerHTML = st.qs.map((q, k) => st.picks[k] === q.c ? "" : `<li><strong>${esc(q.p)}</strong><br>${esc(q.o[q.c])}. <span class="note">${esc(q.e)}</span></li>`).join("");
+  }
+}
+
+Kit.chips($("#temas"), TEMAS, (t) => { $("#tema").value = t; });
+$("#start").onclick = () => {
+  const t = $("#tema").value.trim();
+  if (!t) { $("#tema").focus(); return; }
+  if (t !== st.tema) st.vistas = [];
+  st.tema = t; st.dif = $("#dif").value;
+  generar($("#startmsg"));
+};
+$("#next").onclick = () => { if (st.i + 1 < st.qs.length) st.i += 1; else st.stage = "end"; render(); };
+$("#more").onclick = () => generar($("#moremsg"));
+$("#change").onclick = () => { st.stage = "setup"; render(); };
+
+Kit.boot((d) => { if (d && d.stage) st = d; render(); }, () => st);
+</script>
+</body>
+</html>

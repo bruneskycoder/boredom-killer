@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veinte preguntas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+:root { --h: 250; }
+.count { font: 800 64px/.9 var(--display); font-stretch: 85%; color: var(--accent); font-variant-numeric: tabular-nums; margin: 0; }
+.qa { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.qa li { display: grid; grid-template-columns: 2.2em 1fr auto; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.qa .n { font: 500 13px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.qa .a { font: 600 14px var(--mono); white-space: nowrap; }
+.qa .a.si { color: var(--good); } .qa .a.no { color: var(--bad); } .qa .a.otro { color: var(--warn); }
+.qa .nota { grid-column: 2 / -1; font-size: 14px; color: var(--muted); }
+.reveal { font: 800 clamp(32px, 8vw, 52px)/1 var(--display); font-stretch: 85%; margin: 0; text-wrap: balance; }
+</style>
+</head>
+<body data-needs-ai>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para jugar</p>
+    <h1>Veinte preguntas</h1>
+    <p class="lede">Claude piensa algo y lo guarda. Vos tenés veinte preguntas de sí o no para descubrirlo. Arriesgar gasta una; cada pista gasta dos.</p>
+  </header>
+
+  <section id="setup" class="panel">
+    <div class="split">
+      <div class="field">
+        <label for="cat">Categoría</label>
+        <select id="cat">
+          <option>Cualquiera</option><option>Persona histórica</option><option>Objeto</option>
+          <option>Concepto abstracto</option><option>Animal</option><option>Lugar</option><option>Invento o tecnología</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="dif">Dificultad</label>
+        <select id="dif"><option>Normal</option><option>Difícil</option></select>
+      </div>
+    </div>
+    <div class="row"><button id="start" class="btn" type="button" data-ai>Pensá algo</button><span id="startmsg" class="note" role="status"></span></div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="statusbar">
+      <div><p class="label">Te quedan</p><p id="count" class="count">20</p></div>
+      <p id="cathint" class="meter"></p>
+    </div>
+    <form id="askform" class="composer">
+      <div class="field"><label for="q">Tu pregunta de sí o no</label><input type="text" id="q" autocomplete="off" placeholder="¿Está vivo?"></div>
+      <div class="row">
+        <button class="btn" type="submit" data-ai>Preguntar</button>
+        <button class="btn ghost" type="button" id="hint" data-ai>Pedir pista (cuesta 2)</button>
+        <button class="btn ghost" type="button" id="giveup">Me rindo</button>
+      </div>
+    </form>
+    <form id="guessform" class="row">
+      <label class="sr" for="g">Arriesgar una respuesta</label>
+      <input type="text" id="g" autocomplete="off" placeholder="Arriesgo: es…" style="flex:1 1 200px">
+      <button class="btn ghost" type="submit" data-ai>Arriesgar</button>
+    </form>
+    <p id="status" class="note" role="status"></p>
+    <ol id="qa" class="qa"></ol>
+  </section>
+
+  <section id="end" class="panel" hidden>
+    <p id="endlabel" class="label"></p>
+    <p id="secret" class="reveal"></p>
+    <p id="fact"></p>
+    <div class="row"><button id="again" class="btn" type="button">Otra ronda</button></div>
+    <ol id="qa2" class="qa"></ol>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $, esc } = Kit;
+const MAX = 20;
+let st = { stage: "setup", secreto: null, log: [], usados: 0, pistas: 0, gano: false };
+
+function vistos() { try { return JSON.parse(localStorage.getItem("veinte-vistos") || "[]"); } catch (_) { return []; } }
+function recordar(s) { try { localStorage.setItem("veinte-vistos", JSON.stringify(vistos().concat(s).slice(-30))); } catch (_) {} }
+
+function clase(r) { const x = r.toLowerCase(); return x.startsWith("sí") || x.startsWith("si") ? "si" : x.startsWith("no") && x.length < 4 ? "no" : "otro"; }
+function fila(e, i) {
+  return `<li><span class="n">${e.costo ? i + 1 : "·"}</span><span>${esc(e.q)}</span><span class="a ${clase(e.r)}">${esc(e.r)}</span>${e.nota ? `<span class="nota">${esc(e.nota)}</span>` : ""}</li>`;
+}
+function render() {
+  $("#setup").hidden = st.stage !== "setup";
+  $("#play").hidden = st.stage !== "play";
+  $("#end").hidden = st.stage !== "end";
+  const filas = st.log.map(fila).reverse().join("");
+  $("#count").textContent = Math.max(0, MAX - st.usados);
+  $("#qa").innerHTML = filas;
+  $("#qa2").innerHTML = filas;
+  if (st.secreto) $("#cathint").textContent = "Categoría: " + st.secreto.categoria;
+  if (st.stage === "end" && st.secreto) {
+    $("#endlabel").textContent = st.gano ? "Lo sacaste con " + st.usados + " de " + MAX : "Era";
+    $("#secret").textContent = st.secreto.secreto;
+    $("#fact").textContent = st.secreto.dato || "";
+  }
+}
+function fin(gano) { st.gano = gano; st.stage = "end"; recordar(st.secreto.secreto); render(); }
+function say(t) { $("#status").textContent = t || ""; }
+
+$("#start").onclick = async () => {
+  Kit.setBusy(true); $("#startmsg").textContent = "Pensando algo…";
+  const dificil = $("#dif").value === "Difícil";
+  try {
+    const s = await Kit.askJSON(`Elegí un secreto para el juego de las veinte preguntas.
+Categoría pedida: ${$("#cat").value}. Dificultad: ${dificil ? "difícil: algo conocido por una persona culta pero que no sea lo primero que se le ocurre a nadie" : "normal: algo que casi cualquier adulto conoce"}.
+Tiene que ser una sola cosa concreta y adivinable con preguntas de sí o no. Semilla de variedad: ${Math.random().toString(36).slice(2, 8)}.
+No elijas ninguno de estos, ya usados: ${vistos().join(", ") || "ninguno"}.
+Respondé SOLO con JSON: {"secreto": "nombre", "categoria": "categoría general en dos o tres palabras, sin delatar", "pistas": ["pista vaga", "pista media", "pista fuerte"], "dato": "un dato curioso en una oración, en español rioplatense"}`);
+    if (!s || !s.secreto) throw new Error("Claude respondió en un formato inesperado. Reintentá.");
+    st = { stage: "play", secreto: { secreto: String(s.secreto), categoria: String(s.categoria || "?"), pistas: Array.isArray(s.pistas) ? s.pistas : [], dato: String(s.dato || "") }, log: [], usados: 0, pistas: 0, gano: false };
+    $("#startmsg").textContent = ""; say(""); render(); $("#q").focus();
+  } catch (e) { $("#startmsg").textContent = e.message; }
+  Kit.setBusy(false);
+};
+
+async function turno(texto, arriesga) {
+  if (!texto.trim() || st.stage !== "play") return;
+  Kit.setBusy(true); say("Claude está respondiendo…");
+  const previas = st.log.filter((e) => e.costo).map((e) => `- ${e.q} → ${e.r}`).join("\n") || "(ninguna)";
+  try {
+    const r = await Kit.askJSON(`Sos el que guarda el secreto en el juego de las veinte preguntas. El secreto es: «${st.secreto.secreto}».
+Preguntas anteriores y tus respuestas (mantené la coherencia):
+${previas}
+
+${arriesga ? "El jugador ARRIESGA esta respuesta" : "Nueva pregunta del jugador"}: «${texto.trim()}»
+
+Respondé SOLO con JSON: {"r": "Sí" | "No" | "En parte" | "No es de sí o no", "nota": "", "acerto": true | false}
+- "acerto" es true solo si el jugador nombró el secreto (vale un sinónimo o una grafía aproximada).
+- "nota": dejala vacía salvo que un sí o un no a secas engañe; en ese caso, una aclaración de hasta 12 palabras que no delate el secreto.
+- Respondé con la verdad. Nunca escribas el secreto.`, { tier: "quick" });
+    const acerto = r.acerto === true;
+    st.usados += 1;
+    st.log.push({ q: (arriesga ? "Arriesgo: " : "") + texto.trim(), r: acerto ? "Sí" : String(r.r || "No"), nota: String(r.nota || ""), costo: 1 });
+    say("");
+    if (acerto) fin(true); else if (st.usados >= MAX) fin(false); else render();
+  } catch (e) { say(e.message); }
+  Kit.setBusy(false);
+}
+
+$("#askform").addEventListener("submit", (ev) => { ev.preventDefault(); const v = $("#q").value; $("#q").value = ""; turno(v, false); });
+$("#guessform").addEventListener("submit", (ev) => { ev.preventDefault(); const v = $("#g").value; $("#g").value = ""; turno(v, true); });
+$("#hint").onclick = () => {
+  const p = st.secreto.pistas[st.pistas];
+  if (!p) { say("No quedan pistas."); return; }
+  if (MAX - st.usados <= 2) { say("No te alcanzan las preguntas para pagar una pista."); return; }
+  st.pistas += 1; st.usados += 2;
+  st.log.push({ q: "Pista " + st.pistas, r: "−2", nota: String(p), costo: 0 });
+  render();
+};
+$("#giveup").onclick = () => fin(false);
+$("#again").onclick = () => { st = { stage: "setup", secreto: null, log: [], usados: 0, pistas: 0, gano: false }; render(); };
+
+Kit.boot((d) => { if (d && d.stage) st = d; render(); }, () => st);
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escritura con trabas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+:root { --h: 350; }
+.rule-name { font: 800 clamp(26px, 6vw, 36px)/1 var(--display); font-stretch: 85%; margin: 0; color: var(--accent); }
+.rule-text { margin: 0; font-size: 18px; max-width: 56ch; }
+#texto { min-height: 240px; font-size: 18px; line-height: 1.6; background: var(--surface); }
+.check { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+#detalle { font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para crear</p>
+    <h1>Escritura con trabas</h1>
+    <p class="lede">Una restricción formal y un tema. La página controla la regla mientras escribís; cuando termines, Claude te hace una devolución sin reescribirte.</p>
+  </header>
+
+  <section class="panel">
+    <p class="label">La traba</p>
+    <p id="rname" class="rule-name"></p>
+    <p id="rtext" class="rule-text"></p>
+    <p><span class="label">Tema sugerido</span><br><span id="tema"></span></p>
+    <div class="row">
+      <button id="otra" class="btn ghost" type="button">Otra traba</button>
+      <button id="otrotema" class="btn ghost" type="button">Otro tema</button>
+    </div>
+  </section>
+
+  <section class="field">
+    <label for="texto">Tu texto</label>
+    <textarea id="texto" spellcheck="true" placeholder="Escribí acá."></textarea>
+    <div class="check" role="status">
+      <span id="pill" class="pill idle">Sin texto</span>
+      <span id="detalle"></span>
+    </div>
+    <div class="row">
+      <button id="devol" class="btn" type="button" data-ai>Pedir devolución</button>
+      <button id="copy" class="btn ghost" type="button">Copiar el texto</button>
+      <span id="msg" class="note" role="status"></span>
+    </div>
+  </section>
+
+  <section id="fbwrap" class="panel" hidden>
+    <p class="label">Devolución</p>
+    <div id="fb" class="msg"></div>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $, md } = Kit;
+
+/*PURE*/
+const palabras = (t) => String(t).toLowerCase().match(/[a-záéíóúüñ]+/g) || [];
+const sinTilde = (w) => w.replace(/[áéíóúü]/g, (c) => ({ "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u" }[c]));
+const lista = (a) => a.slice(0, 4).join(", ") + (a.length > 4 ? " y " + (a.length - 4) + " más" : "");
+const falta = (n, min) => n < min ? "Van " + n + " palabras; el mínimo es " + min + "." : "";
+
+const TRABAS = [
+  { id: "sin-e", nombre: "Lipograma sin E", regla: "Ninguna palabra puede tener la letra E. Mínimo 40 palabras.",
+    ver(t) { const w = palabras(t), mal = w.filter((x) => /e/.test(sinTilde(x)));
+      if (mal.length) return { ok: false, d: "Tienen E: " + lista(mal) + "." };
+      const f = falta(w.length, 40); return { ok: !f, d: f || w.length + " palabras, ninguna con E." }; } },
+  { id: "cincuenta", nombre: "Cincuenta justas", regla: "Un relato completo de exactamente 50 palabras. Ni 49 ni 51.",
+    ver(t) { const n = palabras(t).length; return { ok: n === 50, d: n === 50 ? "50 palabras." : "Van " + n + " palabras: " + (n < 50 ? "faltan " + (50 - n) : "sobran " + (n - 50)) + "." }; } },
+  { id: "tautograma", nombre: "Tautograma en P", regla: "Toda palabra de tres letras o más empieza con P. Mínimo 20 palabras.",
+    ver(t) { const w = palabras(t), mal = w.filter((x) => x.length >= 3 && x[0] !== "p");
+      if (mal.length) return { ok: false, d: "No empiezan con P: " + lista(mal) + "." };
+      const f = falta(w.length, 20); return { ok: !f, d: f || w.length + " palabras, todas en regla." }; } },
+  { id: "sin-que", nombre: "Prohibido el «que»", regla: "No podés usar «que» ni «qué», ni tampoco «porque», «aunque» o «conque». Mínimo 60 palabras.",
+    ver(t) { const w = palabras(t), mal = w.filter((x) => /^(que|porque|aunque|conque)$/.test(sinTilde(x)));
+      if (mal.length) return { ok: false, d: "Aparece " + mal.length + (mal.length === 1 ? " vez" : " veces") + ": " + lista([...new Set(mal)]) + "." };
+      const f = falta(w.length, 60); return { ok: !f, d: f || w.length + " palabras sin un solo «que»." }; } },
+  { id: "una-oracion", nombre: "Una sola oración", regla: "Todo el texto es una única oración de al menos 70 palabras: un solo punto, al final.",
+    ver(t) { const w = palabras(t), s = String(t).trim(), cortes = (s.replace(/\.{2,}|…/g, ".").match(/[.!?]+/g) || []).length;
+      if (cortes > 1) return { ok: false, d: "Hay " + cortes + " cierres de oración; tiene que haber uno solo." };
+      const f = falta(w.length, 70); if (f) return { ok: false, d: f };
+      return /[.!?]$/.test(s) ? { ok: true, d: w.length + " palabras en una oración." } : { ok: false, d: "Falta el punto final." }; } },
+  { id: "bola-de-nieve", nombre: "Bola de nieve", regla: "Cada línea tiene una palabra más que la anterior: una, dos, tres… Mínimo siete líneas.",
+    ver(t) { const ls = String(t).split("\n").map((l) => palabras(l).length).filter((n) => n > 0);
+      const i = ls.findIndex((n, k) => n !== k + 1);
+      if (i >= 0) return { ok: false, d: "La línea " + (i + 1) + " tiene " + ls[i] + " palabras y le tocan " + (i + 1) + "." };
+      return ls.length >= 7 ? { ok: true, d: ls.length + " líneas en regla." } : { ok: false, d: "Van " + ls.length + " líneas; el mínimo es siete." }; } },
+  { id: "solo-a", nombre: "Monovocalismo en A", regla: "La única vocal permitida es la A. Mínimo 25 palabras.",
+    ver(t) { const w = palabras(t), mal = w.filter((x) => /[eiou]/.test(sinTilde(x)));
+      if (mal.length) return { ok: false, d: "Tienen otra vocal: " + lista(mal) + "." };
+      const f = falta(w.length, 25); return { ok: !f, d: f || w.length + " palabras, solo con A." }; } },
+  { id: "abecedario", nombre: "Abecedario", regla: "Las primeras doce palabras empiezan, en orden, con A, B, C, D, E, F, G, H, I, J, K y L. Después seguís libre.",
+    ver(t) { const w = palabras(t).map(sinTilde), abc = "abcdefghijkl";
+      const i = w.slice(0, 12).findIndex((x, k) => x[0] !== abc[k]);
+      if (i >= 0) return { ok: false, d: "La palabra " + (i + 1) + " («" + w[i] + "») tendría que empezar con " + abc[i].toUpperCase() + "." };
+      return w.length >= 12 ? { ok: true, d: "Las doce primeras están en orden." } : { ok: false, d: "Van " + w.length + " de las doce; la próxima empieza con " + abc[w.length].toUpperCase() + "." }; } },
+];
+/*END*/
+
+const TEMAS = ["La siesta en pleno verano", "Un remate que sale mal", "La tormenta que no termina de llegar", "El último colectivo de la noche", "Una herramienta heredada", "Lo que diría el perro", "Una mudanza", "La lluvia sobre tierra seca", "Un asado con un invitado incómodo", "La ruta de noche", "Un vecino que nadie conoce", "La primera helada"];
+let st = { traba: 0, tema: 0, texto: "", fb: "" };
+let busy = false;
+
+function render() {
+  const t = TRABAS[st.traba];
+  $("#rname").textContent = t.nombre;
+  $("#rtext").textContent = t.regla;
+  $("#tema").textContent = TEMAS[st.tema];
+  check();
+  $("#fbwrap").hidden = !st.fb;
+  if (st.fb) $("#fb").innerHTML = md(st.fb);
+}
+function check() {
+  const pill = $("#pill"), d = $("#detalle");
+  if (!st.texto.trim()) { pill.className = "pill idle"; pill.textContent = "Sin texto"; d.textContent = ""; return null; }
+  const r = TRABAS[st.traba].ver(st.texto);
+  pill.className = "pill " + (r.ok ? "ok" : "no");
+  pill.textContent = r.ok ? "Cumple" : "No cumple";
+  d.textContent = r.d;
+  return r;
+}
+const otro = (n, actual) => { let k; do k = Math.floor(Math.random() * n); while (n > 1 && k === actual); return k; };
+
+$("#texto").addEventListener("input", (e) => { st.texto = e.target.value; check(); });
+$("#otra").onclick = () => { st.traba = otro(TRABAS.length, st.traba); st.fb = ""; render(); };
+$("#otrotema").onclick = () => { st.tema = otro(TEMAS.length, st.tema); render(); };
+$("#copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(st.texto); $("#msg").textContent = "Texto copiado."; }
+  catch (_) { $("#msg").textContent = "No se pudo copiar desde acá. Seleccioná el texto a mano."; }
+};
+$("#devol").onclick = async () => {
+  if (busy) return;
+  if (palabras(st.texto).length < 8) { $("#msg").textContent = "Escribí algo más antes de pedir devolución."; return; }
+  const t = TRABAS[st.traba], r = t.ver(st.texto);
+  busy = true; Kit.setBusy(true); $("#msg").textContent = "";
+  $("#fbwrap").hidden = false; $("#fb").innerHTML = '<p class="wait">Leyendo…</p>';
+  try {
+    st.fb = await Kit.ask(`Sos un lector exigente que devuelve un texto escrito bajo una restricción formal.
+
+Restricción: ${t.nombre}. ${t.regla}
+Control automático: ${r.ok ? "cumple" : "no cumple"} (${r.d})
+Tema sugerido (opcional): ${TEMAS[st.tema]}
+
+Texto del autor:
+"""
+${st.texto}
+"""
+
+Devolución en 120 a 180 palabras, en prosa, con estos tres movimientos:
+1. Qué imagen, giro o frase funciona y por qué. Citá las palabras exactas.
+2. Dónde la restricción produjo un hallazgo y dónde se nota como parche o relleno. Citá.
+3. Una sola sugerencia concreta para la próxima versión.
+Reglas: no reescribas el texto ni propongas frases de reemplazo; la voz es del autor. Si no cumple la restricción, decilo en una línea y seguí. Sin elogios genéricos, sin emojis. Español rioplatense con voseo.`,
+      { onText: (x) => { if (x && x.text) $("#fb").innerHTML = md(x.text); } });
+    $("#fb").innerHTML = md(st.fb);
+  } catch (e) { st.fb = ""; $("#fbwrap").hidden = true; $("#msg").textContent = e.message; }
+  busy = false; Kit.setBusy(false);
+};
+
+Kit.boot((d) => {
+  if (d && typeof d.traba === "number") st = d;
+  else { st.traba = Math.floor(Math.random() * TRABAS.length); st.tema = Math.floor(Math.random() * TEMAS.length); }
+  $("#texto").value = st.texto;
+  render();
+}, () => st);
+</script>
+</body>
+</html>

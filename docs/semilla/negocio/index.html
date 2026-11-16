@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Negocio delirante</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>:root { --h: 145; }</style>
+</head>
+<body data-needs-ai>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para crear</p>
+    <h1>Negocio delirante</h1>
+    <p class="lede">Un emprendimiento absurdo analizado con toda la seriedad de un comité de inversión: cliente, ingresos, costos, la causa real del fracaso y la versión que podría andar.</p>
+  </header>
+
+  <section id="setup" class="panel">
+    <div class="field">
+      <label for="idea">Tu idea delirante</label>
+      <textarea id="idea" rows="2" placeholder="Opcional. Si la dejás vacía, Claude inventa una."></textarea>
+    </div>
+    <div class="row">
+      <button id="start" class="btn" type="button" data-ai>Analizar</button>
+      <span class="note">Con el campo vacío, la idea sale de dos ingredientes al azar.</span>
+    </div>
+  </section>
+
+  <section id="play" hidden>
+    <div id="log" class="log" aria-live="polite"></div>
+    <div id="quick" class="chips"></div>
+    <form id="composer" class="composer">
+      <label class="sr" for="reply">Tu respuesta</label>
+      <textarea id="reply" rows="2" placeholder="Defendelo, cambiá un supuesto o pedí otro ángulo."></textarea>
+      <div class="row">
+        <button class="btn" type="submit">Enviar</button>
+        <button class="btn ghost" type="button" id="reset">Otro negocio</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $ } = Kit;
+const RUBROS = ["ganadería", "velorios", "peajes", "siestas", "impresión 3D", "remates", "kioscos", "turismo rural", "trámites y burocracia", "mate", "colectivos de larga distancia", "cumpleaños infantiles", "alambrados", "mudanzas", "meteorología"];
+const GIROS = ["por suscripción mensual", "con blockchain innecesaria", "para mascotas", "a domicilio", "en formato franquicia", "solo de madrugada", "para empresas", "edición premium artesanal", "como plataforma de software", "con programa de puntos", "para influencers"];
+const RAPIDAS = ["Hacé los números de un mes", "Pivoteá a algo vendible", "Defendelo ante un inversor escéptico", "¿Quién sería el primer cliente real?"];
+let meta = { stage: "setup" };
+
+const chat = Kit.chat({
+  log: $("#log"), form: $("#composer"), input: $("#reply"), onChange: update,
+  brief: () => `Sos analista de un comité de inversión que evalúa negocios absurdos con seriedad total. El humor sale del contraste: tono seco, de informe, nunca chistes explícitos.
+
+Primer turno: presentá el negocio en hasta 230 palabras con estos apartados en negrita, cada uno en su párrafo: Nombre comercial. La propuesta en una línea. Cliente. Cómo cobra. Costos principales (órdenes de magnitud, marcados como supuestos). Por qué fracasaría (la causa real y no obvia: unidad económica, distribución, regulación, incentivos). La versión que podría funcionar.
+
+Turnos siguientes: respondé lo que se te pida en hasta 150 palabras. Si el usuario defiende el negocio, atacá el supuesto más débil de su defensa. Si pide números, mostrá la cuenta paso a paso y aclará qué cifras son supuestos.
+
+Contexto: Argentina. Español rioplatense con voseo. Sin emojis, sin elogios. No inventes datos de mercado como si fueran hechos.`,
+});
+
+function update() {
+  $("#setup").hidden = meta.stage !== "setup";
+  $("#play").hidden = meta.stage !== "play";
+  document.querySelectorAll("#quick .chip").forEach((b) => { b.disabled = chat.isBusy() || chat.replies() < 1; });
+}
+Kit.chips($("#quick"), RAPIDAS, (t) => chat.send(t));
+
+$("#start").onclick = () => {
+  const idea = $("#idea").value.trim();
+  meta = { stage: "play" };
+  chat.clear(); update();
+  chat.send(idea
+    ? "Analizá este negocio: " + idea
+    : `Inventá un negocio delirante cruzando estos dos ingredientes: «${Kit.pick(RUBROS)}» y «${Kit.pick(GIROS)}». Después analizalo.`,
+    { hidden: !idea });
+};
+$("#reset").onclick = () => { meta.stage = "setup"; $("#idea").value = ""; chat.clear(); update(); };
+
+Kit.boot((d) => {
+  if (d && d.meta) { meta = d.meta; chat.load(d.messages); }
+  update();
+}, () => ({ meta, messages: chat.state() }));
+</script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ficción a la deriva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+:root { --h: 70; }
+.story { display: flex; flex-direction: column; gap: 18px; max-width: 62ch; }
+.scene { font-size: 18px; line-height: 1.65; }
+.scene:first-child p:first-child::first-letter { font: 800 3.1em/.8 var(--display); float: left; padding: 6px 8px 0 0; color: var(--accent); }
+.did { margin: 0; font: 500 14px/1.4 var(--mono); color: var(--accent); padding-left: 14px; border-left: 3px solid var(--accent); }
+.opts { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.opts .chip { border-radius: 6px; padding: 11px 14px; font-size: 15px; }
+</style>
+</head>
+<body data-needs-ai>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Sobremesa · para jugar</p>
+    <h1>Ficción a la deriva</h1>
+    <p class="lede">Claude narra, vos decidís. Nueve escenas, y lo que hacés en una se paga en las siguientes. Podés elegir una opción o escribir la tuya.</p>
+  </header>
+
+  <section id="setup" class="panel">
+    <div class="field">
+      <span class="label">Escenario</span>
+      <div id="esc" class="chips"></div>
+    </div>
+    <div class="field">
+      <label for="propio">O describí el tuyo</label>
+      <input type="text" id="propio" autocomplete="off" placeholder="Lugar, época y quién sos">
+    </div>
+    <div class="field">
+      <label for="tono">Tono</label>
+      <select id="tono">
+        <option>Realista y seco</option><option>Fantástico, con una sola cosa imposible</option>
+        <option>Humor negro</option><option>Policial</option>
+      </select>
+    </div>
+    <div class="row"><button id="start" class="btn" type="button" data-ai>Empezar la historia</button><span id="startmsg" class="note" role="status"></span></div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="statusbar"><p id="topic" class="topic"></p><p id="meter" class="meter"></p></div>
+    <div id="story" class="story" aria-live="polite"></div>
+    <div id="opts" class="opts"></div>
+    <form id="composer" class="composer">
+      <div class="field"><label for="act">O escribí qué hacés</label><input type="text" id="act" autocomplete="off"></div>
+      <div class="row">
+        <button class="btn" type="submit" data-ai>Hacerlo</button>
+        <button class="btn ghost" type="button" id="copy">Copiar la historia</button>
+        <button class="btn ghost" type="button" id="reset">Otra historia</button>
+      </div>
+    </form>
+    <p id="status" class="note" role="status"></p>
+  </section>
+</div>
+
+<script src="kit.js"></script>
+<script>
+const { $, esc, md } = Kit;
+const TOTAL = 9;
+const ESCENARIOS = [
+  "El Chaco en 1890: sos agrimensor y llegás a medir tierras que ya tienen dueño",
+  "Una estación en Marte: sos la técnica de turno la noche en que falla el reciclador de agua",
+  "Un remate de hacienda en 2060: sos el martillero y un lote no es lo que dice la planilla",
+  "Un pueblo del interior, hoy: volvés después de quince años a vender la casa familiar",
+];
+/* turns: [{accion, texto, opciones, fin}] ; accion nula en la primera escena */
+let st = { stage: "setup", escenario: "", tono: "", turns: [] };
+let busy = false;
+
+/*PURE*/
+function partir(text) {
+  const parts = String(text).split(/\n?\s*###\s*/);
+  const cuerpo = parts[0].trim();
+  const resto = (parts[1] || "").trim();
+  if (/^FIN/i.test(resto)) return { texto: cuerpo, opciones: [], fin: true };
+  const opciones = resto.split("\n").map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)]|[A-Ca-c][.)])\s*/, "").trim()).filter(Boolean).slice(0, 3);
+  return { texto: cuerpo, opciones, fin: false };
+}
+/*END*/
+
+const brief = () => `Sos el narrador de una ficción interactiva. El usuario es el protagonista y decide; vos narrás las consecuencias.
+
+Escenario: ${st.escenario}
+Tono: ${st.tono}
+
+Reglas:
+- Segunda persona, presente. Entre 90 y 140 palabras por escena.
+- Detalle concreto del lugar y la época: oficios, objetos, clima, cómo habla la gente. Nada de adjetivos de relleno.
+- Las decisiones tienen consecuencias que persisten. No decidas por el protagonista ni le atribuyas sentimientos.
+- La historia dura ${TOTAL} escenas. Cada mensaje del usuario indica el número de escena: administrá la tensión para llegar a un cierre.
+- Terminá cada escena con una línea que diga solo ### y debajo exactamente tres opciones, una por línea, de hasta 12 palabras, de distinto tipo: una prudente, una arriesgada y una lateral.
+- En la última escena cerrá la historia con un final que dependa de lo que hizo el protagonista, y en lugar de opciones escribí una línea que diga solo ###FIN
+- Español rioplatense. Sin emojis, sin moraleja.`;
+
+function payload() {
+  const out = [];
+  st.turns.forEach((t, i) => {
+    const n = i + 1;
+    const tag = n >= TOTAL ? `[Escena ${n} de ${TOTAL}: es la última, cerrá la historia y terminá con ###FIN]` : `[Escena ${n} de ${TOTAL}]`;
+    out.push({ role: "user", content: (i === 0 ? brief() + "\n\n=====\n\nEmpezá la historia. " : "Hago esto: " + t.accion + " ") + tag });
+    if (t.texto) out.push({ role: "assistant", content: t.texto + (t.fin ? "\n###FIN" : "\n###\n" + t.opciones.join("\n")) });
+  });
+  return out;
+}
+
+function render() {
+  $("#setup").hidden = st.stage !== "setup";
+  $("#play").hidden = st.stage !== "play";
+  $("#topic").textContent = st.escenario.split(":")[0];
+  const hechas = st.turns.filter((t) => t.texto).length;
+  const last = st.turns[st.turns.length - 1];
+  const terminada = !!(last && last.fin);
+  $("#meter").textContent = terminada ? "Fin" : "Escena " + Math.max(1, st.turns.length) + " de " + TOTAL;
+  $("#story").innerHTML = st.turns.map((t) =>
+    (t.accion ? `<p class="did">${esc(t.accion)}</p>` : "") + (t.texto ? `<div class="scene">${md(t.texto)}</div>` : "")).join("");
+  const box = $("#opts");
+  box.innerHTML = "";
+  if (last && last.texto && !terminada && !busy) {
+    last.opciones.forEach((o) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = o; b.setAttribute("data-ai", "");
+      b.onclick = () => avanzar(o);
+      box.appendChild(b);
+    });
+  }
+  $("#act").disabled = terminada;
+  $("#composer button[type=submit]").disabled = terminada || busy;
+  if (terminada && hechas) $("#status").textContent = "La historia terminó. Podés copiarla o empezar otra.";
+}
+
+async function narrar() {
+  busy = true; Kit.setBusy(true); render();
+  const turno = st.turns[st.turns.length - 1];
+  const el = document.createElement("div");
+  el.className = "scene"; el.innerHTML = '<p class="wait">Escribiendo…</p>';
+  $("#story").appendChild(el); el.scrollIntoView({ block: "nearest" });
+  $("#status").textContent = "";
+  try {
+    const text = await Kit.ask(payload(), { onText: (t) => { if (t && t.text) el.innerHTML = md(t.text.split("###")[0]); } });
+    Object.assign(turno, partir(text));
+    if (st.turns.length >= TOTAL) turno.fin = true;
+  } catch (e) {
+    if (st.turns.length > 1) { st.turns.pop(); $("#status").textContent = e.message + " Tu acción no se registró: repetila."; }
+    else { st.stage = "setup"; $("#startmsg").textContent = e.message; }
+  }
+  busy = false; Kit.setBusy(false); render();
+}
+function avanzar(accion) {
+  accion = String(accion || "").trim();
+  const last = st.turns[st.turns.length - 1];
+  if (busy || !accion || !last || last.fin) return;
+  st.turns.push({ accion, texto: "", opciones: [], fin: false });
+  narrar();
+}
+
+Kit.chips($("#esc"), ESCENARIOS, (t, b) => {
+  $("#propio").value = "";
+  document.querySelectorAll("#esc .chip").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$("#esc .chip").setAttribute("aria-pressed", "true");
+$("#propio").addEventListener("input", () => document.querySelectorAll("#esc .chip").forEach((x) => x.setAttribute("aria-pressed", "false")));
+
+$("#start").onclick = () => {
+  const sel = document.querySelector('#esc .chip[aria-pressed="true"]');
+  const e = $("#propio").value.trim() || (sel && sel.textContent);
+  if (!e) { $("#propio").focus(); return; }
+  st = { stage: "play", escenario: e, tono: $("#tono").value, turns: [{ accion: "", texto: "", opciones: [], fin: false }] };
+  narrar();
+};
+$("#composer").addEventListener("submit", (ev) => { ev.preventDefault(); const v = $("#act").value; $("#act").value = ""; avanzar(v); });
+$("#copy").onclick = async () => {
+  const txt = st.turns.map((t) => (t.accion ? "> " + t.accion + "\n\n" : "") + t.texto).join("\n\n");
+  try { await navigator.clipboard.writeText(txt); $("#status").textContent = "Historia copiada."; }
+  catch (_) { $("#status").textContent = "No se pudo copiar desde acá. Seleccioná el texto a mano."; }
+};
+$("#reset").onclick = () => { st = { stage: "setup", escenario: "", tono: "", turns: [] }; $("#status").textContent = ""; render(); };
+
+Kit.boot((d) => {
+  if (d && d.stage) { st = d; st.turns = st.turns.filter((t) => t.texto); if (!st.turns.length) st.stage = "setup"; }
+  render();
+}, () => st);
+</script>
+</body>
+</html>
